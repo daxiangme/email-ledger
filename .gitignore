@@ -1,0 +1,16 @@
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+.vscode/
+*.log
+node_modules/
+dist/
+
+# 本地设计资料，不进入公开仓库
+/design/
+
+# 本地给编辑器助手用的技能，不是插件代码
+.agents/
+skills-lock.json

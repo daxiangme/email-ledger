@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Email Ledger",
+  "version": "0.1.0",
+  "description": "记录邮箱的使用状态、付费状态，以及从 Claude 注册当天算起的天数。",
+  "action": {
+    "default_title": "Email Ledger",
+    "default_popup": "dist/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnGk2aQ1vgDXdDE1ummfrMiVMChWm1Ohbgw/i3gh+irWONZcfmL38ZW1AUQJRcXSjctFSXP2bgCXqC3tZb5P6Pn/bxYNYF6twrwJOAhkMBqU8cNkOn1cPbO06lusAD1E3vdt1B8eFsC7inQo46Eot45tclnhLE8AJPmkIisWFzyraBMAOc7R15KpKt4IxCPTSVWUJ+NnKXzp3P2yioE35vV4KSg6d6gLJAHdnWYnR09CszhM/xTw55c8g4p3YvnhaWmneDBepQNcbN3sWVrG97t9ekA3HEfnHpyaLIASq/DGeuQOv06Jd75RyrP3yVXOqpD0qw0JOdLsaP5GvVgCNoQIDAQAB"
+}
