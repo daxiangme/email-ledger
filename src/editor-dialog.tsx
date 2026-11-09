@@ -202,10 +202,7 @@ export function EditorDialog({
                     spellCheck={false}
                     aria-invalid={Boolean(shown("email"))}
                     onFocus={() => setEmailFocused(true)}
-                    onBlur={() => {
-                      setEmailFocused(false)
-                      setTouched((current) => ({ ...current, email: true }))
-                    }}
+                    onBlur={() => setEmailFocused(false)}
                     onChange={(event) => updateEmail(event.target.value)}
                     onKeyDown={(event) => {
                       if (!domainsOpen) return

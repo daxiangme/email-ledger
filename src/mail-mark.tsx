@@ -1,3 +1,5 @@
+import { useId } from "react"
+
 export function MailMark({ email }: { email: string }) {
   const provider = providerOf(email)
   return (
@@ -39,12 +41,26 @@ function GoogleMark() {
 }
 
 function OutlookMark() {
+  const raw = useId().replace(/:/g, "")
+  const top = `${raw}-top`
+  const front = `${raw}-front`
   return (
     <svg viewBox="0 0 24 24">
-      <rect width="24" height="24" rx="5" fill="#0F6CBD" />
-      <path fill="#fff" d="M13.2 6.2h6.3v11.6h-6.3z" opacity=".9" />
-      <path fill="#fff" d="M4.2 7.4h8.2v9.2H4.2z" />
-      <ellipse cx="8.3" cy="12" rx="2.3" ry="2.6" fill="#0F6CBD" />
+      <defs>
+        <linearGradient id={top} x1="4" y1="5" x2="20" y2="13" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#185FAF" />
+          <stop offset="1" stopColor="#4B9BE0" />
+        </linearGradient>
+        <linearGradient id={front} x1="4" y1="10" x2="16" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7AD7FF" />
+          <stop offset="1" stopColor="#2E96E0" />
+        </linearGradient>
+      </defs>
+      <path fill={`url(#${top})`} d="M3.6 9.2 12 4.6l8.4 4.6L12 13.4z" />
+      <path fill={`url(#${front})`} d="M3.6 10.4 12 14.8l8.4-4.4v7.2c0 1.4-1 2.4-2.4 2.4H6c-1.4 0-2.4-1-2.4-2.4z" />
+      <path fill="#1459A8" d="m14.5 12.2 6 3.1v2.3c0 1-.4 1.7-1.1 2.1L14.5 16z" />
+      <rect x="1.4" y="11.6" width="10.4" height="10.4" rx="2.4" fill="#0C5EAE" />
+      <circle cx="6.6" cy="16.8" r="2.45" fill="none" stroke="#fff" strokeWidth="1.5" />
     </svg>
   )
 }
