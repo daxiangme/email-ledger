@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { CalendarIcon, CheckIcon } from "lucide-react"
 import { zhCN } from "react-day-picker/locale"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   buildAccount,
   describeNurture,
+  emailDomainSuggestions,
   formatCheckedAt,
   todayISODate,
   validateDraft,
@@ -51,17 +52,55 @@ export function EditorDialog({
   const [phase, setPhase] = useState<"idle" | "saving" | "success">("idle")
   const [formError, setFormError] = useState("")
   const [confirming, setConfirming] = useState(false)
+  const [recordId, setRecordId] = useState<string | null>(account?.id ?? null)
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [domainsDismissed, setDomainsDismissed] = useState(false)
+  const [domainIndex, setDomainIndex] = useState(0)
   const today = todayISODate()
-  const result = validateDraft(draft, accounts, today, account?.id ?? null) as {
+  const suggestions = emailDomainSuggestions(draft.email) as string[]
+  const domainCursor = Math.min(domainIndex, Math.max(suggestions.length - 1, 0))
+  const domainsOpen = emailFocused && !domainsDismissed && suggestions.length > 0 && phase === "idle"
+  const result = validateDraft(draft, accounts, today, recordId) as {
     ok: boolean
     errors: Errors
     value: Draft
   }
-  const shown = (name: FieldName) => (submitted || touched[name] ? result.errors[name] : undefined)
+  const shown = (name: FieldName) =>
+    phase === "success" ? undefined : submitted || touched[name] ? result.errors[name] : undefined
+
+  useEffect(() => {
+    const input = document.getElementById("email")
+    if (!input) return
+    const sync = () => setEmailFocused(document.activeElement === input)
+    sync()
+    input.addEventListener("focus", sync)
+    input.addEventListener("blur", sync)
+    return () => {
+      input.removeEventListener("focus", sync)
+      input.removeEventListener("blur", sync)
+    }
+  }, [draft.email])
+
+  useEffect(() => {
+    if (!domainsOpen) return
+    document.getElementById(`email-domain-${domainCursor}`)?.scrollIntoView({ block: "nearest" })
+  }, [domainsOpen, domainCursor])
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
     setFormError("")
+  }
+
+  function updateEmail(value: string) {
+    update("email", value)
+    setDomainsDismissed(false)
+    setDomainIndex(0)
+  }
+
+  function chooseDomain(value: string) {
+    update("email", value)
+    setDomainsDismissed(true)
+    setDomainIndex(0)
   }
 
   async function save() {
@@ -77,9 +116,11 @@ export function EditorDialog({
       if (firstInvalid === "note") document.getElementById("note")?.focus()
       return
     }
+    const previous = account ?? (recordId ? ({ id: recordId } as Account) : null)
+    const next = buildAccount(result.value, previous, new Date().toISOString()) as Account
+    setRecordId(next.id)
     setPhase("saving")
     try {
-      const next = buildAccount(result.value, account, new Date().toISOString()) as Account
       await onSave(next)
       setPhase("success")
       window.setTimeout(onClose, 800)
@@ -124,6 +165,11 @@ export function EditorDialog({
           if (confirming) {
             event.preventDefault()
             setConfirming(false)
+            return
+          }
+          if (domainsOpen) {
+            event.preventDefault()
+            setDomainsDismissed(true)
           }
         }}
       >
@@ -142,15 +188,75 @@ export function EditorDialog({
           <FieldGroup>
             <Field data-invalid={Boolean(shown("email"))}>
               <FieldLabel htmlFor="email">邮箱</FieldLabel>
-              <Input
-                id="email"
-                value={draft.email}
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={Boolean(shown("email"))}
-                onBlur={() => setTouched((current) => ({ ...current, email: true }))}
-                onChange={(event) => update("email", event.target.value)}
-              />
+              <Popover open={domainsOpen}>
+                <PopoverAnchor asChild>
+                  <Input
+                    id="email"
+                    role="combobox"
+                    aria-expanded={domainsOpen}
+                    aria-controls="email-domains"
+                    aria-autocomplete="list"
+                    aria-activedescendant={domainsOpen ? `email-domain-${domainCursor}` : undefined}
+                    value={draft.email}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={Boolean(shown("email"))}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => {
+                      setEmailFocused(false)
+                      setTouched((current) => ({ ...current, email: true }))
+                    }}
+                    onChange={(event) => updateEmail(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (!domainsOpen) return
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault()
+                        setDomainIndex((domainCursor + 1) % suggestions.length)
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault()
+                        setDomainIndex((domainCursor - 1 + suggestions.length) % suggestions.length)
+                      } else if (event.key === "Enter") {
+                        event.preventDefault()
+                        chooseDomain(suggestions[domainCursor])
+                      } else if (event.key === "Escape") {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setDomainsDismissed(true)
+                      }
+                    }}
+                  />
+                </PopoverAnchor>
+                <PopoverContent
+                  align="start"
+                  sideOffset={4}
+                  className="z-[60] w-(--radix-popper-anchor-width) p-1"
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  <ul id="email-domains" role="listbox" aria-label="常见邮箱后缀" className="max-h-60 overflow-y-auto">
+                    {suggestions.map((item, index) => {
+                      const at = item.indexOf("@")
+                      return (
+                        <li key={item}>
+                          <button
+                            id={`email-domain-${index}`}
+                            type="button"
+                            role="option"
+                            aria-selected={index === domainCursor}
+                            className={`flex w-full rounded-md px-2 py-1.5 text-left text-sm ${index === domainCursor ? "bg-accent text-accent-foreground" : ""}`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onMouseEnter={() => setDomainIndex(index)}
+                            onClick={() => chooseDomain(item)}
+                          >
+                            <span>{item.slice(0, at)}</span>
+                            <span className="font-medium">{item.slice(at)}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </PopoverContent>
+              </Popover>
               <FieldError>{shown("email")}</FieldError>
             </Field>
             <Field>
@@ -262,7 +368,7 @@ export function EditorDialog({
             {confirming && account ? (
               <SlideConfirm disabled={phase !== "idle"} onCancel={() => setConfirming(false)} onConfirm={() => void remove()} />
             ) : (
-              <>
+              <div className="flex w-full items-center gap-2">
                 {account && (
                   <Button type="button" variant="destructive" disabled={phase !== "idle"} onClick={() => setConfirming(true)}>
                     删除
@@ -271,14 +377,14 @@ export function EditorDialog({
                 <Button type="button" variant="outline" disabled={phase === "saving"} onClick={onClose}>
                   取消
                 </Button>
-                <Button type="submit" className="min-w-28" disabled={phase === "saving"}>
+                <Button type="submit" className="min-w-0 flex-1 shrink" disabled={phase === "saving"}>
                   <span className="inline-flex size-4 items-center justify-center">
                     {phase === "saving" && <Spinner aria-label="提交中" />}
                     {phase === "success" && <CheckIcon data-icon="inline-start" />}
                   </span>
                   {phase === "saving" ? "提交中…" : "保存"}
                 </Button>
-              </>
+              </div>
             )}
           </DialogFooter>
         </form>
@@ -307,8 +413,14 @@ function DateField({
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
   const selected = isoToDate(value)
   const today = isoToDate(max)
+
+  useEffect(() => {
+    if (!open) return
+    panelRef.current?.scrollIntoView({ block: "nearest" })
+  }, [open])
 
   function choose(next: string) {
     onChange(next)
@@ -321,22 +433,23 @@ function DateField({
         {label}
         {optional && <span className="font-normal text-muted-foreground">（可选）</span>}
       </FieldLabel>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id={id}
-            type="button"
-            variant="outline"
-            aria-invalid={Boolean(error)}
-            className="w-full justify-between font-normal"
-            onBlur={onBlur}
-          >
-            {value || "选择日期"}
-            <CalendarIcon data-icon="inline-end" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="z-[60] w-auto rounded-xl p-0" align="start">
+      <Button
+        id={id}
+        type="button"
+        variant="outline"
+        aria-invalid={Boolean(error)}
+        aria-expanded={open}
+        className="w-full justify-between font-normal"
+        onBlur={onBlur}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {value || "选择日期"}
+        <CalendarIcon data-icon="inline-end" />
+      </Button>
+      {open && (
+        <div ref={panelRef} className="w-full overflow-hidden rounded-xl bg-popover ring-1 ring-foreground/10">
           <Calendar
+            className="w-full bg-transparent"
             mode="single"
             locale={zhCN}
             selected={selected}
@@ -356,8 +469,8 @@ function DateField({
               </Button>
             )}
           </div>
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
       <FieldError>{error}</FieldError>
     </Field>
   )

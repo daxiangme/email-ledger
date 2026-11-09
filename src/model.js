@@ -37,6 +37,37 @@ export function isValidEmail(email) {
   return email.length <= 254 && EMAIL.test(email);
 }
 
+export const COMMON_EMAIL_DOMAINS = [
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "msn.com",
+  "outlook.cn",
+  "gmail.com",
+  "googlemail.com",
+  "qq.com",
+  "foxmail.com",
+  "163.com",
+  "126.com",
+  "yeah.net",
+  "icloud.com",
+  "yahoo.com",
+  "proton.me",
+  "protonmail.com",
+];
+
+export function emailDomainSuggestions(input) {
+  const value = input.trim();
+  const at = value.indexOf("@");
+  if (at <= 0 || value.includes("@", at + 1)) return [];
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1).toLowerCase();
+  if (!local) return [];
+  return COMMON_EMAIL_DOMAINS.filter((item) => item.startsWith(domain) && item !== domain).map(
+    (item) => `${local}@${item}`,
+  );
+}
+
 export function nurtureDays(claudeDate, today) {
   if (!claudeDate) return null;
   const start = parseISODate(claudeDate);

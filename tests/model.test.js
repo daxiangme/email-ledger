@@ -8,6 +8,7 @@ import {
   formatCheckedAt,
   importAccounts,
   todayISODate,
+  emailDomainSuggestions,
   validateDraft,
   visibleAccounts,
 } from "../src/model.js";
@@ -113,6 +114,15 @@ test("养得最久把没填 Claude 日期的放在最后，邮箱排序也把空
 test("保存时检查邮箱和日期，不可用以外不保留原因", () => {
   const duplicate = validateDraft(draft({ email: "A@Outlook.com" }), [account()], today, null);
   assert.equal(duplicate.errors.email, "这个邮箱已经在列表里");
+
+  const created = buildAccount(
+    validateDraft(draft({ email: "leo.reed95@outlook.com" }), [], today, null).value,
+    null,
+    "2026-11-08T00:00:00.000Z",
+  );
+  const saved = validateDraft(draft({ email: "leo.reed95@outlook.com" }), [created], today, created.id);
+  assert.equal(saved.ok, true);
+  assert.equal(saved.errors.email, undefined);
 
   const badEmail = validateDraft(draft({ email: "not-an-email" }), [], today, null);
   assert.equal(badEmail.errors.email, "邮箱格式不对");
@@ -220,6 +230,23 @@ test("导入按邮箱合并，跳过坏行，不删除本地独有记录", () =>
 test("不是本应用的备份文件会被整份拒绝", () => {
   const result = importAccounts([], { app: "other", version: 1, accounts: [] }, "2026-11-07T00:00:00.000Z", today);
   assert.deepEqual(result, { ok: false, error: "这不是 Email Ledger 的备份文件" });
+});
+
+test("输入 @ 后列出还没写完的常见邮箱后缀", () => {
+  const all = emailDomainSuggestions("leo@");
+  assert.equal(all[0], "leo@outlook.com");
+  assert.ok(all.includes("leo@gmail.com"));
+  assert.ok(all.includes("leo@qq.com"));
+  assert.ok(all.includes("leo@163.com"));
+  assert.deepEqual(emailDomainSuggestions("leo@gm"), ["leo@gmail.com"]);
+  assert.deepEqual(emailDomainSuggestions("leo@google"), ["leo@googlemail.com"]);
+  assert.deepEqual(emailDomainSuggestions("Leo@Out"), [
+    "Leo@outlook.com",
+    "Leo@outlook.cn",
+  ]);
+  assert.deepEqual(emailDomainSuggestions("leo@gmail.com"), []);
+  assert.deepEqual(emailDomainSuggestions("leo"), []);
+  assert.deepEqual(emailDomainSuggestions("@gmail.com"), []);
 });
 
 test("导出不写入已经算出的天数", () => {

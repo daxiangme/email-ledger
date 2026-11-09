@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Email Ledger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "记录邮箱的使用状态、付费状态，以及从 Claude 注册当天算起的天数。",
   "action": {
     "default_title": "Email Ledger",
